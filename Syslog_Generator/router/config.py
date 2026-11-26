@@ -25,3 +25,46 @@ SYSLOG_PROTOCOL = "UDP"
 
 # Log generation interval (seconds)
 LOG_INTERVAL = 5
+
+# ==========================================
+# BGP NEIGHBOR CONFIGURATION
+# ==========================================
+
+BGP_NEIGHBORS = [
+    "10.10.10.2",
+    "10.10.10.3"
+]
+
+# ==========================================
+# CPU / MEMORY CONFIGURATION
+# ==========================================
+
+CPU_WARNING_THRESHOLD = 80
+MEMORY_WARNING_THRESHOLD = 85
+
+# ==========================================
+# HARDWARE CONFIGURATION
+# ==========================================
+
+NORMAL_TEMPERATURE = 45
+HIGH_TEMPERATURE = 85
+
+HARDWARE_COMPONENTS = [
+    "Fan 0/0",
+    "Fan 0/1",
+    "Power Supply 0/0",
+    "Power Supply 0/1"
+]
+
+# ==========================================
+# NETWORK PERFORMANCE CONFIGURATION
+# ==========================================
+
+PACKET_LOSS_THRESHOLD = 5
+INTERFACE_ERROR_THRESHOLD = 100
+
+# ==========================================
+# SCENARIO CONFIGURATION
+# ==========================================
+
+SCENARIO_INTERVAL = 5
