@@ -3,7 +3,12 @@
 # SWITCH CONFIGURATION
 # ==========================================
 
-# Thông tin Switch
+# Thông tin thiết bị mục tiêu (profile mô phỏng)
+# Mô hình tham chiếu: Cisco Catalyst 9300 chạy Cisco IOS XE.
+# Đây là profile mô phỏng, không khẳng định đang kết nối thiết bị thật.
+SWITCH_VENDOR = "Cisco"
+SWITCH_MODEL = "Catalyst 9300"
+SWITCH_OS = "Cisco IOS XE"
 SWITCH_NAME = "SW-LAB-01"
 SWITCH_IP = "192.168.1.2"
 
