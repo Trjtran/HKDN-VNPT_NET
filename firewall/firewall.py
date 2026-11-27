@@ -258,7 +258,7 @@ def parse_args():
     parser.add_argument(
         "--interval",
         type=float,
-        default=0.5,
+        default=5,
         help="Delay between datagrams in seconds"
     )
     parser.add_argument(
