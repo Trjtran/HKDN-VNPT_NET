@@ -18,10 +18,10 @@ def get_timestamp():
 
 def generate_syslog(interface, new_state):
     timestamp = get_timestamp()
-
     message_code = "PKT_INFRA-LINK-3-UPDOWN"
     message_text = f"Interface {interface}, changed state to {new_state}"
 
+    # Keep the Cisco XR interface message structure from the VNPT sample.
     return (
         f"{config.NODE_ID}:"
         f"{timestamp}: "
@@ -33,13 +33,12 @@ def generate_syslog(interface, new_state):
 
 def generate_synthetic_syslog(event):
     timestamp = get_timestamp()
-
     event_type = event["type"].upper()
     severity = event["severity"]
     message = event["message"]
-
     message_code = f"SYNTH-{severity}-{event_type}"
 
+    # SYNTH prefix clearly identifies simulated non-interface events.
     return (
         f"{config.NODE_ID}:"
         f"{timestamp}: "
@@ -58,19 +57,32 @@ def send_syslog(sock, message):
     try:
         sock.sendto(message.encode("utf-8"), server_address)
         print(f"[SENT] {message}")
-
     except OSError as error:
         print(f"[ERROR] Cannot send Syslog: {error}")
 
 
+def print_interface_status(state_manager):
+    print("\n[INTERFACE STATUS]")
+    print("-" * 75)
+
+    for interface, info in state_manager.get_all_states().items():
+        print(
+            f"{interface:<20} | "
+            f"Status: {info['status']:<5} | "
+            f"Current downtime: {info['current_downtime']}s | "
+            f"Last downtime: {info['last_downtime']}s"
+        )
+
+    print("-" * 75)
+
+
 def process_scenario(sock, scenario_name, events, state_manager):
     print()
-    print("=" * 55)
+    print("=" * 60)
     print(f"[SCENARIO] {scenario_name.upper()}")
-    print("=" * 55)
+    print("=" * 60)
 
     for event in events:
-
         if event["type"] == "interface":
             interface = event["interface"]
             new_state = event["status"]
@@ -80,6 +92,7 @@ def process_scenario(sock, scenario_name, events, state_manager):
             else:
                 event_info = state_manager.set_up(interface)
 
+            # Ignore duplicate or invalid state transitions.
             if event_info is None:
                 continue
 
@@ -93,7 +106,6 @@ def process_scenario(sock, scenario_name, events, state_manager):
                     f"[RECOVERY] {interface} is UP - "
                     f"Downtime: {event_info['downtime']} seconds"
                 )
-
         else:
             log_message = generate_synthetic_syslog(event)
             send_syslog(sock, log_message)
@@ -102,40 +114,37 @@ def process_scenario(sock, scenario_name, events, state_manager):
 
 
 def start_router_generator():
-    print("=" * 55)
-    print("          CISCO XR ROUTER LOG GENERATOR")
-    print("=" * 55)
-    print(f"Router Name : {config.ROUTER_NAME}")
-    print(f"Router IP   : {config.ROUTER_IP}")
-    print(f"Node ID     : {config.NODE_ID}")
-    print(f"Syslog IP   : {config.SYSLOG_SERVER_IP}")
-    print(f"Syslog Port : {config.SYSLOG_SERVER_PORT}")
-    print("=" * 55)
+    print("=" * 60)
+    print("             CISCO XR ROUTER LOG GENERATOR")
+    print("=" * 60)
+    print(f"Simulated Router Name : {config.ROUTER_NAME}")
+    print(f"Configured Router IP  : {config.ROUTER_IP}")
+    print(f"Cisco XR Node ID      : {config.NODE_ID}")
+    print(f"Syslog Server         : {config.SYSLOG_SERVER_IP}:{config.SYSLOG_SERVER_PORT}")
+    print("=" * 60)
     print("Generating router failure scenarios...")
+    print("Non-interface events use SYNTH-* codes for simulation.")
     print("Press Ctrl + C to stop.")
     print()
 
     state_manager = InterfaceStateManager()
     scenario_manager = RouterScenarioManager(state_manager)
-
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     try:
         while True:
             scenario_name, events = scenario_manager.generate_scenario()
-
             process_scenario(
                 sock,
                 scenario_name,
                 events,
                 state_manager
             )
-
+            print_interface_status(state_manager)
             time.sleep(config.SCENARIO_INTERVAL)
 
     except KeyboardInterrupt:
         print("\nRouter Log Generator stopped.")
-
     finally:
         sock.close()
 
