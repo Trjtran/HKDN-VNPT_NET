@@ -21,6 +21,13 @@ class RouterScenarioManager:
             component: "Normal"
             for component in config.HARDWARE_COMPONENTS
         }
+        self.temperature_state = "Normal"
+
+        # Network performance
+        self.performance_states = {
+            "packet_loss": "Normal",
+            "interface_error": "Normal"
+        }
 
     # ==========================================
     # INTERFACE SCENARIOS
@@ -93,12 +100,7 @@ class RouterScenarioManager:
     def bgp_event(self):
         neighbor = random.choice(config.BGP_NEIGHBORS)
         current = self.bgp_states[neighbor]
-
-        new_state = (
-            "Idle" if current == "Established"
-            else "Established"
-        )
-
+        new_state = "Idle" if current == "Established" else "Established"
         self.bgp_states[neighbor] = new_state
 
         return [{
@@ -116,11 +118,7 @@ class RouterScenarioManager:
         current = self.bgp_states[neighbor]
 
         for _ in range(4):
-            new_state = (
-                "Idle" if current == "Established"
-                else "Established"
-            )
-
+            new_state = "Idle" if current == "Established" else "Established"
             events.append({
                 "type": "bgp",
                 "message": (
@@ -129,7 +127,6 @@ class RouterScenarioManager:
                 ),
                 "severity": 3 if new_state == "Idle" else 5
             })
-
             current = new_state
 
         self.bgp_states[neighbor] = current
@@ -143,23 +140,19 @@ class RouterScenarioManager:
         resource = random.choice(["CPU", "Memory"])
 
         if resource == "CPU":
-            value = random.randint(80, 99)
             threshold = config.CPU_WARNING_THRESHOLD
             current = self.cpu_state
         else:
-            value = random.randint(85, 99)
             threshold = config.MEMORY_WARNING_THRESHOLD
             current = self.memory_state
 
-        new_state = "High" if value >= threshold else "Normal"
-
-        if new_state == current:
-            new_state = "Normal" if current == "High" else "High"
-            value = (
-                random.randint(30, threshold - 1)
-                if new_state == "Normal"
-                else random.randint(threshold, 99)
-            )
+        # Generate a value consistent with the next state.
+        if current == "Normal":
+            new_state = "High"
+            value = random.randint(threshold, max(threshold, threshold + 15))
+        else:
+            new_state = "Normal"
+            value = random.randint(30, threshold - 1)
 
         if resource == "CPU":
             self.cpu_state = new_state
@@ -168,7 +161,10 @@ class RouterScenarioManager:
 
         return [{
             "type": "resource",
-            "message": f"{resource} utilization is {value}%",
+            "message": (
+                f"{resource} utilization is {value}% "
+                f"(threshold: {threshold}%) - state: {new_state}"
+            ),
             "severity": 3 if new_state == "High" else 5
         }]
 
@@ -179,7 +175,6 @@ class RouterScenarioManager:
     def hardware_event(self):
         component = random.choice(config.HARDWARE_COMPONENTS)
         current = self.hardware_states[component]
-
         new_state = "Failure" if current == "Normal" else "Normal"
         self.hardware_states[component] = new_state
 
@@ -203,18 +198,32 @@ class RouterScenarioManager:
         }]
 
     def temperature_event(self):
-        temperature = random.randint(
-            config.HIGH_TEMPERATURE,
-            config.HIGH_TEMPERATURE + 15
-        )
+        if self.temperature_state == "Normal":
+            self.temperature_state = "High"
+            temperature = random.randint(
+                config.HIGH_TEMPERATURE,
+                config.HIGH_TEMPERATURE + 15
+            )
+            severity = 2
+            message = (
+                f"Temperature threshold exceeded: {temperature} Celsius "
+                f"(threshold: {config.HIGH_TEMPERATURE} Celsius)"
+            )
+        else:
+            self.temperature_state = "Normal"
+            temperature = random.randint(
+                30,
+                config.NORMAL_TEMPERATURE
+            )
+            severity = 5
+            message = (
+                f"Temperature returned to normal: {temperature} Celsius"
+            )
 
         return [{
             "type": "hardware",
-            "message": (
-                f"Temperature threshold exceeded: "
-                f"{temperature} Celsius"
-            ),
-            "severity": 2
+            "message": message,
+            "severity": severity
         }]
 
     # ==========================================
@@ -223,24 +232,43 @@ class RouterScenarioManager:
 
     def performance_event(self):
         event_type = random.choice(["packet_loss", "interface_error"])
+        current = self.performance_states[event_type]
 
         if event_type == "packet_loss":
-            value = random.randint(
-                config.PACKET_LOSS_THRESHOLD,
-                30
-            )
-            message = f"Packet loss detected: {value}%"
+            threshold = config.PACKET_LOSS_THRESHOLD
+            if current == "Normal":
+                self.performance_states[event_type] = "High"
+                value = random.randint(threshold, max(threshold, threshold + 15))
+                message = (
+                    f"Packet loss detected: {value}% "
+                    f"(threshold: {threshold}%)"
+                )
+                severity = 3
+            else:
+                self.performance_states[event_type] = "Normal"
+                value = random.randint(0, max(0, threshold - 1))
+                message = f"Packet loss recovered: {value}%"
+                severity = 5
         else:
-            value = random.randint(
-                config.INTERFACE_ERROR_THRESHOLD,
-                1000
-            )
-            message = f"Interface errors detected: {value}"
+            threshold = config.INTERFACE_ERROR_THRESHOLD
+            if current == "Normal":
+                self.performance_states[event_type] = "High"
+                value = random.randint(threshold, threshold + 100)
+                message = (
+                    f"Interface errors detected: {value} "
+                    f"(threshold: {threshold})"
+                )
+                severity = 3
+            else:
+                self.performance_states[event_type] = "Normal"
+                value = random.randint(0, max(0, threshold - 1))
+                message = f"Interface errors returned to normal: {value}"
+                severity = 5
 
         return [{
             "type": "performance",
             "message": message,
-            "severity": 3
+            "severity": severity
         }]
 
     # ==========================================
@@ -255,8 +283,8 @@ class RouterScenarioManager:
         ])
 
         messages = {
-            "login_failure": "Failed login attempt detected",
-            "config_change": "Router configuration changed",
+            "login_failure": "Failed login attempt detected (simulated)",
+            "config_change": "Router configuration changed (simulated)",
             "device_reboot": "Router reboot event simulated"
         }
 
@@ -307,5 +335,4 @@ class RouterScenarioManager:
         )[0]
 
         events = getattr(self, selected)()
-
         return selected, events
